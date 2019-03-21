@@ -16,6 +16,8 @@ public class Tester
 	private int filesOut = 0;
 	private int filesDelta = 0;
 	private int filesCorrupted = 0;
+	private int filesInAmount;
+	private int assembleTime;
 
 	private SortedProperties props;
 	private File propsFile;
@@ -55,13 +57,13 @@ public class Tester
 		
 		//delete content of in and out folder
 		
-		File inFolder = new File(props.getProperty("1IN"));
+		File inFolder = new File(props.getProperty("01IN"));
 		for(File child : inFolder.listFiles())
 		{
 			child.delete();
 		}
 		
-		File outFolder = new File(props.getProperty("2OUT"));
+		File outFolder = new File(props.getProperty("02OUT"));
 		for(File child : outFolder.listFiles())
 		{
 			child.delete();
@@ -70,21 +72,23 @@ public class Tester
 
 	private void readProperties()
 	{
-		in = props.getProperty("1IN");
-		out = props.getProperty("2OUT");
-		fileSize = Integer.valueOf(props.getProperty("3FileSize"));
-		fileFrequency = Integer.valueOf(props.getProperty("4FileFrequency"));
+		in = props.getProperty("01IN");
+		out = props.getProperty("02OUT");
+		fileSize = Integer.valueOf(props.getProperty("03FileSize"));
+		fileFrequency = Integer.valueOf(props.getProperty("04FileFrequency"));
+		filesInAmount = Integer.valueOf(props.getProperty("10FilesINAmount"));
+		assembleTime = Integer.valueOf(props.getProperty("11AssembleTime"));
 	}
 
 	public void writeProps() throws FileNotFoundException, IOException
 	{
 		long currentTime = System.currentTimeMillis();
 		
-		props.setProperty("5FilesIN", String.valueOf(filesIn));
-		props.setProperty("6FilesOUT", String.valueOf(filesOut));
-		props.setProperty("7TotalTime", String.valueOf((currentTime - startTime) / 1000));
-		props.setProperty("8FilesDelta", String.valueOf(filesIn - filesOut));
-		props.setProperty("9FilesCorrupted", String.valueOf(filesCorrupted));
+		props.setProperty("05FilesIN", String.valueOf(filesIn));
+		props.setProperty("06FilesOUT", String.valueOf(filesOut));
+		props.setProperty("07TotalTime", String.valueOf((currentTime - startTime) / 1000));
+		props.setProperty("08FilesDelta", String.valueOf(filesIn - filesOut));
+		props.setProperty("09FilesCorrupted", String.valueOf(filesCorrupted));
 
 		props.store(new FileOutputStream(propsFile), "State: " + state);
 	}
@@ -92,28 +96,18 @@ public class Tester
 	private void test() throws FileNotFoundException, IOException
 	{
 
-		startWriter();
+		TestFileWriter writer = new TestFileWriter(this);
+		Thread t = new Thread(writer);
+		t.start();
 
 		TestFileReader reader = new TestFileReader(this);
-		Thread t = new Thread(reader);
+		t = new Thread(reader);
 		t.start();
 
 		TestFileLogger logger = new TestFileLogger(this);
 		t = new Thread(logger);
 		t.start();
 
-	}
-	
-	public void stopWriter()
-	{
-		writer.stop();
-	}
-	
-	public void startWriter()
-	{
-		writer = new TestFileWriter(this);
-		Thread t = new Thread(writer);
-		t.start();
 	}
 
 	public int getFilesIn()
@@ -185,6 +179,11 @@ public class Tester
 	public void incrementFilesCorrupted()
 	{
 		filesCorrupted++;
+	}
+	
+	public int getAssembleTime()
+	{
+		return assembleTime;
 	}
 
 }

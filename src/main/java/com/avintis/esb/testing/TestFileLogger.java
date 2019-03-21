@@ -16,10 +16,8 @@ public class TestFileLogger implements Runnable
 		{
 			try
 			{
-				tester.stopWriter();
-				Thread.sleep(10000);
 				tester.writeProps();
-				tester.startWriter();
+				Thread.sleep(2000);
 				
 			} 
 			catch (Exception e)
