@@ -48,7 +48,7 @@ public class TestFileReader implements Runnable
 					try
 					{
 						System.out.println("Different file size, maybe still writing....");
-						Thread.sleep(5000);
+						Thread.sleep(2000);
 						if(fileSize != (long) tester.getFileSize())
 						{
 							System.out.println("DIFFERENT FILE SIZE! Received: " + fileSize + ", expected: " + tester.getFileSize());
@@ -76,6 +76,7 @@ public class TestFileReader implements Runnable
 						if(name.equals(hashName))
 						{
 							tester.incrementFilesOut();
+							tester.removeFileRef(hashName);
 						}
 						else
 						{
