@@ -1,34 +1,35 @@
 package com.avintis.esb.testing;
 
+import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Properties;
+import java.util.concurrent.SynchronousQueue;
 
 public class Tester
 {
-	
+	private String in;
+	private String out;
 	private int fileSize;
-	private int fileFrequency;
+	private int wait;
+	private int duration;
+	private int maxWaitOnFile;
 	private int filesIn = 0;
 	private int filesOut = 0;
-	private int filesDelta = 0;
 	private int filesCorrupted = 0;
 
-	private SortedProperties props;
-	private File propsFile;
-	private File stopFile;
-	
-	private String state = "running";
+	private Properties props;
 	
 	private long startTime;
 	
-	private String out;
-	
 	private TestFileWriter writer;
+	private TestFileReader reader;
 	
 	private ArrayList<String> fileRefs;
 
@@ -37,182 +38,125 @@ public class Tester
 
 		/**
 		 * if(!(args.length == 2 && (new File(args[0]).exists()))) {
-		 * System.out.println("Either no propertie file submitted or given file does not
+		 * System.out.println("Either no property file submitted or given file does not
 		 * exist!"); System.exit(1); } props.load(new FileReader(new File(args[0])));
 		 */
 
 		
 		File f = new File("/home/hauensteina/app.properties");
+		Properties props = new Properties();
+		props.load(new FileReader(f));
 
-		Tester tester = new Tester(f);
+		Tester tester = new Tester(props);
 		tester.test();
 		
 
 	}
 
-	public Tester(File propsFile) throws FileNotFoundException, IOException
+	public Tester(Properties props) throws FileNotFoundException, IOException
 	{
-		startTime = System.currentTimeMillis();
-		this.propsFile = propsFile;
-		props = new SortedProperties();
-		props.load(new FileInputStream(propsFile));
+		this.props = props;
 		readProperties();
-		
-		fileRefs = new ArrayList<String>(); 
-		
-		//delete content of in and out folder
-		File inFolder = new File(props.getProperty("01IN"));
-		for(File child : inFolder.listFiles())
-		{
-			child.delete();
-		}
-		
-		File outFolder = new File(props.getProperty("02OUT"));
-		for(File child : outFolder.listFiles())
-		{
-			child.delete();
-		}
+		startTime = System.currentTimeMillis();
+
 	}
 
 	private void readProperties()
 	{
-		in = props.getProperty("01IN");
-		out = props.getProperty("02OUT");
-		fileSize = Integer.valueOf(props.getProperty("03FileSize"));
-		fileFrequency = Integer.valueOf(props.getProperty("04FileFrequency"));
-	}
-
-	public void writeProps() throws FileNotFoundException, IOException
-	{
-		long currentTime = System.currentTimeMillis();
+		in = props.getProperty("IN");
+		out = props.getProperty("OUT");
+		fileSize = Integer.valueOf(props.getProperty("FileSize"));
+		wait = Integer.valueOf(props.getProperty("Wait"));
+		duration = Integer.valueOf(props.getProperty("Duration"));
+		maxWaitOnFile = Integer.valueOf(props.getProperty("MaxWaitOnFile"));
 		
-		props.setProperty("05FilesIN", String.valueOf(filesIn));
-		props.setProperty("06FilesOUT", String.valueOf(filesOut));
-		props.setProperty("07TotalTime", String.valueOf((currentTime - startTime) / 1000));
-		props.setProperty("08FilesDelta", String.valueOf(fileRefs.size()));
-		props.setProperty("09FilesCorrupted", String.valueOf(filesCorrupted));
-
-		props.store(new FileOutputStream(propsFile), "State: " + state);
+		if(isNullOrEmpty(in) || isNullOrEmpty(out))
+		{
+			System.out.println("Check properties file: No IN or OUT defined!");
+			System.exit(1);
+		}
+		
+		if(fileSize == 0 || duration == 0 || maxWaitOnFile == 0)
+		{
+			System.out.println("Either fileSize, duration or maxWaitOnFile is 0. Abort!");
+			System.exit(1);
+		}
+	}
+	
+	private boolean isNullOrEmpty(String s)
+	{
+		if(s == null)
+		{
+			return true;
+		}
+		if(s.equals(""))
+		{
+			return true;
+		}
+		return false;
 	}
 
 	private void test() throws FileNotFoundException, IOException
 	{
-
 		writer = new TestFileWriter(this);
-		Thread t = new Thread(writer);
-		t.start();
+		reader = new TestFileReader(this);
+		
+		while(startTime + (duration * 1000) > System.currentTimeMillis())
+		{	
+			String messageFileName = writer.write();
+			if(isNullOrEmpty(messageFileName))
+			{
+				System.out.println("Could not get Filename! Check previous logs...");
+				System.exit(1);
+			}
+			filesIn++;
+			
+			Result res = reader.read(messageFileName);
+			switch(res)
+			{
+				case CORRUPTED:
+					filesCorrupted++;
+					break;
+				case NOT_RECEIVED:
+					System.out.println("MISSING File: " + messageFileName);
+					break;
+				case OK:
+					filesOut++;
+					break;
+			}
 
-		TestFileReader reader = new TestFileReader(this);
-		t = new Thread(reader);
-		t.start();
-
-		TestFileLogger logger = new TestFileLogger(this);
-		t = new Thread(logger);
-		t.start();
-
-	}
-	
-	public void stopWriter()
-	{
-		if(writer != null)
-		{
-			writer.stop();
+			try
+			{
+				Thread.sleep(wait * 1000);
+			} catch (InterruptedException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 		}
+		
+		System.out.println("FileSize\tWait\tDuration\tMaxWaitOnFile\tNumber of files IN\tNumber of files OUT\tcorrupted");
+		System.out.println(fileSize + "\t\t" + wait + "\t" + duration + "\t\t" + maxWaitOnFile + "\t\t" + filesIn + "\t\t\t" + filesOut + "\t\t\t" + filesCorrupted);
 	}
-	
-	public void startWriter()
-	{
-		writer = new TestFileWriter(this);
-		Thread t = new Thread(writer);
-		t.start();
-	}
-	
-	public void addFileRef(String ref)
-	{
-		fileRefs.add(ref);
-	}
-	
-	public void removeFileRef(String ref)
-	{
-		if(fileRefs.contains(ref)) 
+		
+		public int getFileSize()
 		{
-			fileRefs.remove(ref);
+			return fileSize;
 		}
-		else
+		
+		public String getIn()
 		{
-			System.out.println("File wit name: " + ref + " was not found in References");
+			return in;
 		}
-	}
-
-	public int getFilesIn()
-	{
-		return filesIn;
-	}
-
-	public void setFilesIn(int filesIn)
-	{
-		this.filesIn = filesIn;
-	}
-
-	public void incrementFilesIn()
-	{
-		filesIn++;
-	}
-
-	public int getFilesOut()
-	{
-		return filesOut;
-	}
-
-	public void setFilesOut(int filesOut)
-	{
-		this.filesOut = filesOut;
-	}
-
-	public void incrementFilesOut()
-	{
-		filesOut++;
-	}
-
-	public int getFileFrequency()
-	{
-		return fileFrequency;
-	}
-
-	public void setFileFrequency(int fileFrequency)
-	{
-		this.fileFrequency = fileFrequency;
-	}
-
-	public int getFilesDelta()
-	{
-		return filesDelta;
-	}
-
-	public void setFilesDelta(int filesDelta)
-	{
-		this.filesDelta = filesDelta;
-	}
-
-	public int getFileSize()
-	{
-		return fileSize;
-	}
-	
-	private String in;
-	public String getIn()
-	{
-		return in;
-	}
-
-	public String getOut()
-	{
-		return out;
-	}
-	
-	public void incrementFilesCorrupted()
-	{
-		filesCorrupted++;
-	}
-
+		
+		public String getOut()
+		{
+			return out;
+		}
+		
+		public int getMaxWaitOnFile()
+		{
+			return maxWaitOnFile;
+		}
 }

@@ -6,7 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
-public class TestFileWriter implements Runnable
+public class TestFileWriter
 {
 	private Tester tester;
 	private boolean running = true;
@@ -16,67 +16,46 @@ public class TestFileWriter implements Runnable
 		this.tester = tester;
 	}
 
-	public void run()
+	public String write()
 	{
-		while (running)
+
+		FileOutputStream fos = null;
+		String fileName = null;
+
+		try
+		{
+			String message = TestFileUtil.createMessage(tester.getFileSize());
+			fileName = TestFileUtil.createHashName(message);
+
+			File newFile = new File(tester.getIn(), fileName);
+
+			newFile.createNewFile();
+			fos = new FileOutputStream(newFile);
+			fos.write(message.getBytes());
+			fos.flush();
+
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+		finally
 		{
 
-			FileOutputStream fos = null;
-
-			try
+			if (fos != null)
 			{
-				String message = TestFileUtil.createMessage(tester.getFileSize());
-				String fileName = TestFileUtil.createHashName(message);
-
-				File newFile = new File(tester.getIn(), fileName);
-
-				newFile.createNewFile();
-				fos = new FileOutputStream(newFile);
-				fos.write(message.getBytes());
-				fos.flush();
-
-				tester.addFileRef(fileName);
-				tester.incrementFilesIn();
-
-			} catch (NoSuchAlgorithmException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (FileNotFoundException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e)
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			finally
-			{
-
-				if (fos != null)
+				try
 				{
-					try
-					{
-						fos.close();
-					} catch (IOException e)
-					{
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					try
-					{
-						Thread.sleep(tester.getFileFrequency());
-					} catch (InterruptedException e)
-					{
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					fos.close();
+				} catch (IOException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 			}
-
 		}
+		
+		return fileName;
+
 	}
 
 	public void stop()
