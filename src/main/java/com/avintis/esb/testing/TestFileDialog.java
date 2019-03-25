@@ -137,6 +137,7 @@ public class TestFileDialog implements Runnable
 				try
 				{
 					fis.close();
+					returnedFile.delete();
 				} catch (IOException ignore)
 				{
 				}

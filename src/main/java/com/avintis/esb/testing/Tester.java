@@ -5,6 +5,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;;
 
 public class Tester
@@ -20,26 +23,23 @@ public class Tester
 	private int filesCorrupted = 0;
 
 	private Properties props;
-	
+
 	private long startTime;
 
 	public static void main(String[] args) throws FileNotFoundException, IOException, NoSuchAlgorithmException
 	{
 
-		/**
-		 * if(!(args.length == 2 && (new File(args[0]).exists()))) {
-		 * System.out.println("Either no property file submitted or given file does not
-		 * exist!"); System.exit(1); } props.load(new FileReader(new File(args[0])));
-		 */
-
-		
-		File f = new File("/home/hauensteina/app.properties");
 		Properties props = new Properties();
-		props.load(new FileReader(f));
+
+		if (!(args.length == 1 && (new File(args[0]).exists())))
+		{
+			System.out.println("Either no property file submitted or given file does not exist!");
+			System.exit(1);
+		}
+		props.load(new FileReader(new File(args[0])));
 
 		Tester tester = new Tester(props);
 		tester.test();
-		
 
 	}
 
@@ -59,27 +59,27 @@ public class Tester
 		duration = Integer.valueOf(props.getProperty("Duration"));
 		maxWaitOnFile = Integer.valueOf(props.getProperty("MaxWaitOnFile"));
 		frequency = Integer.valueOf(props.getProperty("Frequency"));
-		
-		if(isNullOrEmpty(in) || isNullOrEmpty(out))
+
+		if (isNullOrEmpty(in) || isNullOrEmpty(out))
 		{
 			System.out.println("Check properties file: No IN or OUT defined!");
 			System.exit(1);
 		}
-		
-		if(fileSize == 0 || duration == 0 || maxWaitOnFile == 0)
+
+		if (fileSize == 0 || duration == 0 || maxWaitOnFile == 0)
 		{
 			System.out.println("Either fileSize, duration or maxWaitOnFile is 0. Abort!");
 			System.exit(1);
 		}
 	}
-	
+
 	private boolean isNullOrEmpty(String s)
 	{
-		if(s == null)
+		if (s == null)
 		{
 			return true;
 		}
-		if(s.equals(""))
+		if (s.equals(""))
 		{
 			return true;
 		}
@@ -88,14 +88,14 @@ public class Tester
 
 	private void test() throws FileNotFoundException, IOException
 	{
-		
-		while(startTime + (duration * 1000) > System.currentTimeMillis())
-		{	
+
+		while (startTime + (duration * 1000) > System.currentTimeMillis())
+		{
 			TestFileDialog dialog = new TestFileDialog(this);
-			
+
 			Thread t = new Thread(dialog);
 			t.start();
-			
+
 			try
 			{
 				Thread.sleep(frequency);
@@ -103,9 +103,9 @@ public class Tester
 			{
 				e.printStackTrace();
 			}
-			
+
 		}
-		
+
 		try
 		{
 			Thread.sleep(maxWaitOnFile * 1000);
@@ -114,49 +114,64 @@ public class Tester
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		Date date = new Date();
+		String formatedDate = dateFormat.format(date);
+
+		if (filesIn == filesOut && filesCorrupted == 0)
+		{
+			System.out.println(formatedDate + " - OK");
+		} else
+		{
+			System.out.println(formatedDate + " - NOK");
+		}
 		
-		System.out.println("FileSize\tFrequency\tDuration\tMaxWaitOnFile\tNumber of files IN\tNumber of files OUT\tcorrupted");
-		System.out.println(fileSize + "\t\t" + frequency + "\t\t" + duration + "\t\t" + maxWaitOnFile + "\t\t" + filesIn + "\t\t\t" + filesOut + "\t\t\t" + filesCorrupted);
+		System.out.println(
+				"FileSize\tFrequency\tDuration\tMaxWaitOnFile\tNumber of files IN\tNumber of files OUT\tcorrupted");
+		System.out.println(fileSize + "\t\t" + frequency + "\t\t" + duration + "\t\t" + maxWaitOnFile + "\t\t"
+				+ filesIn + "\t\t\t" + filesOut + "\t\t\t" + filesCorrupted);
+
 	}
-		
-		public int getFileSize()
+
+	public int getFileSize()
+	{
+		return fileSize;
+	}
+
+	public String getIn()
+	{
+		return in;
+	}
+
+	public String getOut()
+	{
+		return out;
+	}
+
+	public int getMaxWaitOnFile()
+	{
+		return maxWaitOnFile;
+	}
+
+	public void incrementFileIn()
+	{
+		filesIn++;
+	}
+
+	public void processResult(Result res, String messageFileName)
+	{
+		switch (res)
 		{
-			return fileSize;
+		case CORRUPTED:
+			filesCorrupted++;
+			break;
+		case NOT_RECEIVED:
+			System.out.println("MISSING File: " + messageFileName);
+			break;
+		case OK:
+			filesOut++;
+			break;
 		}
-		
-		public String getIn()
-		{
-			return in;
-		}
-		
-		public String getOut()
-		{
-			return out;
-		}
-		
-		public int getMaxWaitOnFile()
-		{
-			return maxWaitOnFile;
-		}
-		
-		public void incrementFileIn()
-		{
-			filesIn++;
-		}
-		
-		public void processResult(Result res, String messageFileName)
-		{
-			switch(res)
-			{
-				case CORRUPTED:
-					filesCorrupted++;
-					break;
-				case NOT_RECEIVED:
-					System.out.println("MISSING File: " + messageFileName);
-					break;
-				case OK:
-					filesOut++;
-					break;
-			}
-		}
+	}
 }
