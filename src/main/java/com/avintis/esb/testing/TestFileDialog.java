@@ -105,7 +105,7 @@ public class TestFileDialog implements Runnable
 		
 		if(returnedFile == null)
 		{
-			System.out.println(Thread.currentThread().getName());
+			//System.out.println(Thread.currentThread().getName());
 			return Result.NOT_RECEIVED;
 		}
 		else
