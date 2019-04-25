@@ -13,6 +13,8 @@ public class TestFileDialog implements Runnable
 	private File in;
 	private File out;
 	
+	private TestFileUtil testFileUtil = new TestFileUtil();
+	
 	public TestFileDialog(Tester tester)
 	{
 		this.tester = tester;
@@ -42,8 +44,8 @@ public class TestFileDialog implements Runnable
 
 		try
 		{
-			String message = TestFileUtil.createMessage(tester.getFileSize());
-			fileName = TestFileUtil.createHashName(message);
+			String message = testFileUtil.createMessage(tester.getFileSize());
+			fileName = testFileUtil.createHashName(message);
 
 			File newFile = new File(in, fileName);
 
@@ -79,28 +81,23 @@ public class TestFileDialog implements Runnable
 	
 	private Result read()
 	{
-		final String filterName = fileName;
-		long searchStart = System.currentTimeMillis();
 		File outFolder = new File(tester.getOut());
 		File returnedFile = null;
 		
-		while(searchStart + (tester.getMaxWaitOnFile() * 1000) > System.currentTimeMillis())
+		
+		try
 		{
-			File[] files = outFolder.listFiles(new FilenameFilter()
-			{
-
-				public boolean accept(File dir, String name)
-				{
-					//excludes .tmp -> no check for still writing required
-					return name.equals(filterName);
-				}
-			});
-			
-			if(files.length == 1)
-			{
-				returnedFile = files[0];
-				break;
-			}
+			Thread.sleep(tester.getMaxWaitOnFile() * 1000);
+		} catch (InterruptedException e1)
+		{
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		returnedFile = new File(outFolder, fileName);
+		if(!returnedFile.exists()) 
+		{
+			returnedFile = null;
 		}
 		
 		if(returnedFile == null)
@@ -117,18 +114,21 @@ public class TestFileDialog implements Runnable
 				byte[] bMessage = new byte[tester.getFileSize()];
 				fis.read(bMessage);
 				String message = new String(bMessage);
-				String hashName = TestFileUtil.createHashName(message);
+				String hashName = testFileUtil.createHashName(message);
 				if(hashName.equals(fileName))
 				{
 					return Result.OK;
 				}
 				else
 				{
+					System.out.println("HASHNAME: " + hashName);
+					System.out.println("FILENAME: " + fileName);
 					return Result.CORRUPTED;
 				}
 				
 			} catch (Exception e)
 			{
+				System.out.println("EXCEPION WHILE READ");
 				e.printStackTrace();
 				return Result.CORRUPTED;
 			}
